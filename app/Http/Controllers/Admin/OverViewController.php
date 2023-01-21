@@ -60,7 +60,7 @@ class OverViewController extends Controller
         //Fill out variables for each currency separately
         foreach ($payments->where('created_at', '>=', Carbon::today()->startOfMonth()) as $payment) {
             $paymentCurrency = $payment->currency_code;
-            if (! isset($counters['payments']['thisMonth'][$paymentCurrency])) {
+            if (!isset($counters['payments']['thisMonth'][$paymentCurrency])) {
                 $counters['payments']['thisMonth']->put($paymentCurrency, collect());
                 $counters['payments']['thisMonth'][$paymentCurrency]->total = 0;
                 $counters['payments']['thisMonth'][$paymentCurrency]->count = 0;
@@ -70,7 +70,7 @@ class OverViewController extends Controller
         }
         foreach ($payments->where('created_at', '<', Carbon::today()->startOfMonth()) as $payment) {
             $paymentCurrency = $payment->currency_code;
-            if (! isset($counters['payments']['lastMonth'][$paymentCurrency])) {
+            if (!isset($counters['payments']['lastMonth'][$paymentCurrency])) {
                 $counters['payments']['lastMonth']->put($paymentCurrency, collect());
                 $counters['payments']['lastMonth'][$paymentCurrency]->total = 0;
                 $counters['payments']['lastMonth'][$paymentCurrency]->count = 0;
@@ -89,9 +89,9 @@ class OverViewController extends Controller
         $counters['payments']->total = Payment::query()->count();
 
 
-        foreach($taxPayments->where('created_at', '>=', Carbon::today()->startOfYear()) as $taxPayment){
+        foreach ($taxPayments->where('created_at', '>=', Carbon::today()->startOfYear()) as $taxPayment) {
             $paymentCurrency = $taxPayment->currency_code;
-            if(!isset($counters['taxPayments']['thisYear'][$paymentCurrency])){
+            if (!isset($counters['taxPayments']['thisYear'][$paymentCurrency])) {
 
                 $counters['taxPayments']['thisYear']->put($paymentCurrency, collect());
                 $counters['taxPayments']['thisYear'][$paymentCurrency]->total = 0;
@@ -105,9 +105,9 @@ class OverViewController extends Controller
             $counters['taxPayments']['thisYear'][$paymentCurrency]->taxes += $taxPayment->tax_value;
         }
 
-        foreach($taxPayments->where('created_at', '>=', Carbon::today()->startOfYear()->subYear())->where('created_at', '<', Carbon::today()->startOfYear()) as $taxPayment){
+        foreach ($taxPayments->where('created_at', '>=', Carbon::today()->startOfYear()->subYear())->where('created_at', '<', Carbon::today()->startOfYear()) as $taxPayment) {
             $paymentCurrency = $taxPayment->currency_code;
-            if(!isset($counters['taxPayments']['lastYear'][$paymentCurrency])){
+            if (!isset($counters['taxPayments']['lastYear'][$paymentCurrency])) {
 
                 $counters['taxPayments']['lastYear']->put($paymentCurrency, collect());
                 $counters['taxPayments']['lastYear'][$paymentCurrency]->total = 0;
@@ -140,7 +140,7 @@ class OverViewController extends Controller
         $nodes = collect();
         foreach ($DBnodes = Node::query()->get() as $DBnode) { //gets all node information and prepares the structure
             $nodeId = $DBnode['id'];
-            if (! in_array($nodeId, $pteroNodeIds)) {
+            if (!in_array($nodeId, $pteroNodeIds)) {
                 continue;
             } //Check if node exists on pterodactyl too, if not, skip
             $nodes->put($nodeId, collect());
@@ -161,7 +161,7 @@ class OverViewController extends Controller
 
             if ($CPServer = Server::query()->where('pterodactyl_id', $server['attributes']['id'])->first()) {
                 $price = Product::query()->where('id', $CPServer->product_id)->first()->price;
-                if (! $CPServer->suspended) {
+                if (!$CPServer->suspended) {
                     $counters['earnings']->active += $price;
                     $counters['servers']->active++;
                     $nodes[$nodeId]->activeEarnings += $price;
@@ -174,31 +174,7 @@ class OverViewController extends Controller
             }
         }
 
-        //Get latest tickets
-        $tickets = collect();
-        foreach (Ticket::query()->latest()->take(5)->get() as $ticket) {
-            $tickets->put($ticket->ticket_id, collect());
-            $tickets[$ticket->ticket_id]->title = $ticket->title;
-            $user = User::query()->where('id', $ticket->user_id)->first();
-            $tickets[$ticket->ticket_id]->user_id = $user->id;
-            $tickets[$ticket->ticket_id]->user = $user->name;
-            $tickets[$ticket->ticket_id]->status = $ticket->status;
-            $tickets[$ticket->ticket_id]->last_updated = $ticket->updated_at->diffForHumans();
-            switch ($ticket->status) {
-                case 'Open':
-                    $tickets[$ticket->ticket_id]->statusBadgeColor = 'badge-success';
-                    break;
-                case 'Closed':
-                    $tickets[$ticket->ticket_id]->statusBadgeColor = 'badge-danger';
-                    break;
-                case 'Answered':
-                    $tickets[$ticket->ticket_id]->statusBadgeColor = 'badge-info';
-                    break;
-                default:
-                    $tickets[$ticket->ticket_id]->statusBadgeColor = 'badge-warning';
-                    break;
-            }
-        }
+        $tickets = $this->getLatestTickets();
 
         return view('admin.overview.index', [
             'counters' => $counters,
@@ -219,5 +195,30 @@ class OverViewController extends Controller
         Egg::syncEggs();
 
         return redirect()->back()->with('success', __('Pterodactyl synced'));
+    }
+
+    private function getLatestTickets()
+    {
+        $tickets = Ticket::query()->with('user')->orderBy('updated_at', 'desc')->limit(5)->get();
+        foreach ($tickets as $ticket) {
+            $ticket->user = $ticket->user->name;
+            $ticket->last_updated = $ticket->updated_at->diffForHumans();
+            switch ($ticket->status) {
+                case 'Open':
+                    $ticket->statusBadgeColor = 'badge-success';
+                    break;
+                case 'Closed':
+                    $ticket->statusBadgeColor = 'badge-danger';
+                    break;
+                case 'Answered':
+                    $ticket->statusBadgeColor = 'badge-info';
+                    break;
+                default:
+                    $ticket->statusBadgeColor = 'badge-warning';
+                    break;
+            }
+        }
+
+        return $tickets;
     }
 }
