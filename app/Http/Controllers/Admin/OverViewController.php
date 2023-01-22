@@ -138,11 +138,16 @@ class OverViewController extends Controller
             array_push($pteroNodeIds, $pteroNode['attributes']['id']);
         }
         $nodes = collect();
-        foreach ($DBnodes = Node::query()->get() as $DBnode) { //gets all node information and prepares the structure
+
+        //gets all node information and prepares the structure
+        foreach ($DBnodes = Node::query()->get() as $DBnode) {
             $nodeId = $DBnode['id'];
+
+            //Check if node exists on pterodactyl too, if not, skip
             if (!in_array($nodeId, $pteroNodeIds)) {
                 continue;
-            } //Check if node exists on pterodactyl too, if not, skip
+            }
+
             $nodes->put($nodeId, collect());
             $nodes[$nodeId]->name = $DBnode['name'];
             $pteroNode = Pterodactyl::getNode($nodeId);
@@ -156,11 +161,11 @@ class OverViewController extends Controller
         }
         $counters['totalUsagePercent'] = ($DBnodes->count()) ? round($counters['totalUsagePercent'] / $DBnodes->count(), 2) : 0;
 
-        foreach (Pterodactyl::getServers() as $server) { //gets all servers from Pterodactyl and calculates total of credit usage for each node separately + total
+        // Calculate server and earnings information
+        foreach (Pterodactyl::getServers() as $server) {
             $nodeId = $server['attributes']['node'];
-
-            if ($CPServer = Server::query()->where('pterodactyl_id', $server['attributes']['id'])->first()) {
-                $price = Product::query()->where('id', $CPServer->product_id)->first()->price;
+            if ($CPServer = Server::query()->where('pterodactyl_id', $server['attributes']['id'])->with('product')->first()) {
+                $price = $CPServer->product->price;
                 if (!$CPServer->suspended) {
                     $counters['earnings']->active += $price;
                     $counters['servers']->active++;
