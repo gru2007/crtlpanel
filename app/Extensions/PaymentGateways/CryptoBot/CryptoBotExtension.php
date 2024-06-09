@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use App\Notifications\ConfirmPaymentNotification;
+use App\Extensions\PaymentGateways\CryptoBot\CryptoBotSettings;
 
 /**
  * Summary of PayPalExtension
